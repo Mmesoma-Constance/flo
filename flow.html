@@ -1,0 +1,282 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menstruation Cycle Tracker</title>
+    <style>
+      #inputForm {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      #calendar {
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      #days {
+        display: flex;
+        gap: 5px;
+      }
+
+      .day {
+        flex: 1;
+        text-align: center;
+        border: 1px solid #ccc;
+      }
+
+      .date {
+        padding: 5px;
+        border: 1px solid #ccc;
+      }
+
+      .highlight {
+        background-color: #ff0000;
+      }
+
+      #history {
+        max-width: 500px;
+        margin: 20px auto;
+        border: 1px solid #ccc;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="inputForm">
+      <label for="lastDate">Last Menstruation Date:</label>
+      <input type="date" id="lastDate" name="lastDate" required /><br />
+
+      <label for="cycleLength">Average Cycle Length (in days):</label>
+      <input
+        type="number"
+        id="cycleLength"
+        name="cycleLength"
+        min="1"
+        required
+      /><br />
+
+      <label for="duration">Cycle Duration (in days):</label>
+      <input
+        type="number"
+        id="duration"
+        name="duration"
+        min="1"
+        required
+      /><br />
+
+      <button onclick="calculateNextCycle()">Submit</button>
+    </div>
+
+    <div id="calendar" style="display: none">
+      <div id="month"></div>
+      <div id="days"></div>
+    </div>
+
+    <p id="remainingDays"></p>
+
+    <div id="history" style="display: none">
+      <h3>Past Records</h3>
+      <ul id="historyList"></ul>
+    </div>
+
+    <script>
+      // Function to load data from local storage when the page loads
+      window.onload = function () {
+        loadFormData();
+        loadRemainingDays();
+        loadHistory();
+      };
+
+      function calculateNextCycle() {
+        const lastDateInput = document.getElementById("lastDate");
+        const cycleLengthInput = document.getElementById("cycleLength");
+        const durationInput = document.getElementById("duration");
+        const calendarContainer = document.getElementById("calendar");
+        const monthContainer = document.getElementById("month");
+        const daysContainer = document.getElementById("days");
+        const remainingDaysParagraph = document.getElementById("remainingDays");
+
+        const lastDate = new Date(lastDateInput.value);
+        const cycleLength = parseInt(cycleLengthInput.value);
+        const duration = parseInt(durationInput.value);
+
+        if (
+          isNaN(cycleLength) ||
+          cycleLength <= 0 ||
+          isNaN(duration) ||
+          duration <= 0
+        ) {
+          alert("Please enter valid cycle length and duration.");
+          return;
+        }
+
+        // Save form data to local storage
+        saveFormData(
+          lastDateInput.value,
+          cycleLengthInput.value,
+          durationInput.value
+        );
+
+        const nextCycleStartDate = calculateNextCycleStartDate(
+          lastDate,
+          cycleLength,
+          duration
+        );
+        const remainingDays = calculateRemainingDays(nextCycleStartDate);
+
+        // Save remaining days to local storage
+        localStorage.setItem("remainingDays", remainingDays);
+
+        remainingDaysParagraph.textContent = `Remaining days to next menstruation: ${remainingDays}`;
+
+        displayCalendar(
+          monthContainer,
+          daysContainer,
+          nextCycleStartDate,
+          cycleLength
+        );
+        calendarContainer.style.display = "block";
+
+        // Save the entry to history
+        saveToHistory(
+          lastDateInput.value,
+          cycleLengthInput.value,
+          durationInput.value,
+          remainingDays
+        );
+      }
+
+      function calculateNextCycleStartDate(lastDate, cycleLength, duration) {
+        const lastCycleEndDate = new Date(
+          lastDate.getTime() + duration * 24 * 60 * 60 * 1000
+        );
+        const nextCycleStartDate = new Date(
+          lastCycleEndDate.getTime() + (cycleLength - 1) * 24 * 60 * 60 * 1000
+        );
+        return nextCycleStartDate;
+      }
+
+      function calculateRemainingDays(nextCycleStartDate) {
+        const today = new Date();
+        const differenceInTime = nextCycleStartDate.getTime() - today.getTime();
+        const differenceInDays = Math.ceil(
+          differenceInTime / (1000 * 3600 * 24)
+        );
+        return differenceInDays;
+      }
+
+      function displayCalendar(
+        monthContainer,
+        daysContainer,
+        nextCycleStartDate,
+        cycleLength
+      ) {
+        monthContainer.innerHTML = "";
+        daysContainer.innerHTML = "";
+
+        const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        const currentDate = new Date(nextCycleStartDate);
+        const month = months[currentDate.getMonth()];
+
+        monthContainer.textContent = month;
+
+        for (let i = 0; i < 7; i++) {
+          const dayElement = document.createElement("div");
+          dayElement.classList.add("day");
+
+          const dayOfWeek = daysOfWeek[(currentDate.getDay() + i) % 7];
+          const dateOfMonth = currentDate.getDate() + i;
+
+          const dateDiv = document.createElement("div");
+          dateDiv.classList.add("date");
+          dateDiv.textContent = dateOfMonth;
+
+          dayElement.textContent = dayOfWeek;
+          dayElement.appendChild(dateDiv);
+
+          if (i === 0) {
+            dayElement.classList.add("highlight");
+          }
+
+          daysContainer.appendChild(dayElement);
+        }
+      }
+
+      function saveFormData(lastDate, cycleLength, duration) {
+        localStorage.setItem("lastDate", lastDate);
+        localStorage.setItem("cycleLength", cycleLength);
+        localStorage.setItem("duration", duration);
+      }
+
+      function loadFormData() {
+        const savedLastDate = localStorage.getItem("lastDate");
+        const savedCycleLength = localStorage.getItem("cycleLength");
+        const savedDuration = localStorage.getItem("duration");
+
+        if (savedLastDate) {
+          document.getElementById("lastDate").value = savedLastDate;
+        }
+        if (savedCycleLength) {
+          document.getElementById("cycleLength").value = savedCycleLength;
+        }
+        if (savedDuration) {
+          document.getElementById("duration").value = savedDuration;
+        }
+      }
+
+      function loadRemainingDays() {
+        const savedRemainingDays = localStorage.getItem("remainingDays");
+
+        if (savedRemainingDays) {
+          document.getElementById("remainingDays").textContent =
+            "Remaining days to next menstruation: " + savedRemainingDays;
+        }
+      }
+
+      function saveToHistory(lastDate, cycleLength, duration, remainingDays) {
+        const history = JSON.parse(localStorage.getItem("history")) || [];
+        const newEntry = {
+          date: new Date().toLocaleString(),
+          lastDate,
+          cycleLength,
+          duration,
+          remainingDays,
+        };
+        history.push(newEntry);
+        localStorage.setItem("history", JSON.stringify(history));
+        loadHistory();
+      }
+
+      function loadHistory() {
+        const history = JSON.parse(localStorage.getItem("history")) || [];
+        const historyList = document.getElementById("historyList");
+        historyList.innerHTML = "";
+
+        history.forEach((entry) => {
+          const listItem = document.createElement("li");
+          listItem.textContent = `Date: ${entry.date}, Last Menstruation Date: ${entry.lastDate}, Cycle Length: ${entry.cycleLength} days, Duration: ${entry.duration} days, Remaining Days: ${entry.remainingDays}`;
+          historyList.appendChild(listItem);
+        });
+
+        if (history.length > 0) {
+          document.getElementById("history").style.display = "block";
+        }
+      }
+    </script>
+  </body>
+</html>
